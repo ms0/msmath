@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=44"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "msmath"
+version = "1.0.6"
+authors = [
+  { name="Mike Speciner", email="ms@alum.mit.edu" },
+]
+description = "mathematical Python classes: finite fields, rationals, quaternions, matrices, polynomials, graphs, bitstrings"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=2.7"
+classifiers = [
+    "Programming Language :: Python",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Education",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ms0/msmath"
+"Bug Tracker" = "https://github.com/ms0/msmath/issues"
