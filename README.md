@@ -3,7 +3,7 @@ msmath package
 
 mathematical Python classes
 
-Classes to implement
+Classes implementing
 * finite fields (ffield.py)
 * Z_m finite rings (fring.py)
 * rationals: real, complex, quaternion (rational.py)
