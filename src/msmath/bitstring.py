@@ -152,6 +152,7 @@ def __init__(self,a=None,b=None) :
       return;
     else :
       a = _bitstring[8](a,b);
+      b = None;
   if isinstance(type(a),bitstrings) :
     self._l = l = a._l;
     if l <= B :
