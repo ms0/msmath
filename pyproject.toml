@@ -3,7 +3,7 @@ requires = ["setuptools>=44","pathlib"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "msmath"
-version = "1.0.8"
+version = "1.0.9"
 authors = [
   { name="Mike Speciner", email="ms@alum.mit.edu" },
 ]
