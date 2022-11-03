@@ -3,7 +3,7 @@ from __future__ import division
 
 from msmath.conversions import xrange
 
-from random import Random, randrange, randint
+from random import Random, randrange, randint, randbytes
 from itertools import chain
 
 from timeit import timeit, default_timer
@@ -122,6 +122,12 @@ def test2(b1,b2) :
   ceq('int(~(v[0]|~v[1])) == 0',b,c);
   ceq('int(v[0].concat(v[1]))==int(v[0])*((1<<len(v[0]))+1)',b,c);
 
+def test3(b1) :
+  """test pairs of bitstring types"""
+  l = randint(0,maxbits//8);   # size of bitstring
+  x = randbytes(l)
+  b = b1(x,l*8);
+  ceq('0-v[0]==-v[0]',b)
 
 R=Random();
 R.seed(0);
@@ -208,6 +214,7 @@ Usage: python test_bitstring.py [options]
       print(' %s'%(B));
       for _ in xrange(256) :
         test1(bitstrings(B));
+        test3(bitstrings(B))
         for C in bss :
           test2(bitstrings(B),bitstrings(C))
   _CB = int(optdict.get('c',_CB));
