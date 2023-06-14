@@ -4,12 +4,12 @@ __all__ = ['polynomial','rationalfunction']
 
 import sys
 
-from itertools import chain, count
+from itertools import chain, count, combinations
 from collections import defaultdict
 from . matrix import product, bmatrix
-from . rational import rational, xrational, inf, realize
+from . rational import rational, xrational, inf, realize, exp
 from . conversions import bit_length, xrange, isint, iteritems, isffield, lmap
-from . numfuns import factors, leastfactor, ffactors, primepower, modpow, isirreducible, isprimitive, lcma, divisors
+from . numfuns import factors, leastfactor, ffactors, primepower, modpow, isirreducible, isprimitive, gcda, lcma, divisors, primes
 from random import randrange,randint
 
 if sys.version_info>(3,) :
@@ -160,7 +160,7 @@ Methods:
     self._p = ();
 
   def __hash__(self) :
-    return hash(self._p if len(self._p) > 1 else self[0]);
+    return hash(self._p if len(self._p) > 1 else len(self._p) and self._p[0]);
 
   @property
   def degree(self) :
@@ -522,7 +522,37 @@ if q is not specified, the field is inferred from self's coefficients"""
           if self.gcd(y-x).degree != 0 : return False;
         else :
           return not (y-x)%self;
-    raise TypeError('implemented only for finite fields');
+    if types <= COMPLEX and complex in types :
+      return False;    # only linear polys are irreducible over C
+    if types <= REAL and not float in types :
+      if not self[0] : return False;    # multiple of x
+      m = lcma(map(lambda x:x.denominator,self._p));
+      d = gcda(map(lambda x:x.numerator,self._p));
+      poly = self = self.mapcoeffs(lambda x:int(m*x/d));
+      if self.gcd(self.derivative()).degree > 0 :
+        return False;
+      for p in primes(int(max(map(lambda x:abs(x),self))*exp(self.degree))+1) :
+        p0 = poly._p[0];
+        if p0 != 1 :    # make monic
+          i = modpow(p0,p-2,p);
+          poly = self.mapcoeffs(lambda x: x*i%p);
+        if isirreducible(poly._p[1:],p) :
+          return True;
+        from . ffield import ffield
+        F = ffield(p);
+        poly = poly.mapcoeffs(F);    # map to GF(p)
+        facs = poly.factor();
+        if sum(facs.values()) > len(facs) :    # not square free
+          continue;
+        for c in xrange(1,(len(facs)>>1)+1) :
+          for facc in combinations(facs,c) :
+            fac = product(facc);
+            for d in divisors(self._p[0]) :
+              g = (d*fac).mapcoeffs(lambda x:x.x-p if p>>1 < x.x else x.x);
+              if not self._p[-1]%g._p[-1] and not self%g :
+                return False;
+        return True;
+    raise TypeError('not implemented for these coefficient types');
 
   def isprimitive(self,q=0) :
     """Return True iff self (assumed irreducible) is primitive over a field;
@@ -569,11 +599,13 @@ if q is not specified, the field is inferred from self's coefficients"""
 
   def factor(self,facdict=None,e=1) :
     """Return a factorization of polynomial self as a defaultdict(int);
-keys are factors, and values are positive integer exponents;
-if the leading coefficient is real (i.e., int or float),
+keys are factors, and values are positive integer exponents.
+If the coefficients are all real (i.e., int or float),
 the coefficients are converted to rationals before factoring
-and the result's coefficients are converted to ints if integers else floats.
-Nonconstant factors will be square-free but not necessarily irreducible."""
+and the result's coefficients are converted to ints if integers else floats;
+nonconstant factors will be square-free and irreducible over the rationals.
+If some coefficients are complex (i.e., xrational or complex),
+factors will be square-free but not necessarily irreducible."""
     if not isinstance(facdict,defaultdict) : facdict = defaultdict(int);
     if self.degree < 1 :
       if not self or self._p[0]**2 != self._p[0] :
@@ -606,7 +638,7 @@ Nonconstant factors will be square-free but not necessarily irreducible."""
       return facdict;
     if self._p[0]**2 != self._p[0] :
       facdict[type(self)(self._p[0])] += e;
-      self /= self._p[0];
+      self /= self._p[0];    # make monic
     g = self.gcd(self.derivative());
     self //= g
     # now self is square-free, but might have factor in common with g
@@ -694,10 +726,11 @@ Nonconstant factors will be square-free but not necessarily irreducible."""
       if not self._p[-1] :    # self(0) == 0
         facdict[type(self)(self._p[0],self._p[-1])] += e;    # add x as factor
         self = type(self)(*self._p[:-1]);    # divide by x
-      if isinstance(self._p[0],rational) :
+      if all(isinstance(x,rational) for x in self._p) :    # Q[x] factorization
         m = lcma(map(lambda x:x.denominator,self._p));
-        if m != 1 : facdict[type(self)(rational(1,m))] += e;
-        self = self.mapcoeffs(lambda x:m*x);
+        if m != 1 :
+          facdict[type(self)(rational(1,m))] += e;
+          self = self.mapcoeffs(lambda x:m*x);
         m = 1;    # combine constant factors
         i = [];
         for f,k in facdict.items() :
@@ -706,30 +739,71 @@ Nonconstant factors will be square-free but not necessarily irreducible."""
             m *= f._p[0]**k;
         for f in i : del facdict[f];
         if m != 1 : facdict[type(self)(m)] += 1;
-        t = set();        # look for linear factors
-        while self.degree > 1 :
-          for a in divisors(int(self._p[0])) :
-            for b in divisors(int(self._p[-1])) :
-              r = rational(b,a);
-              if r not in t :
-                t.add(r);
-                if not self(r) :
-                  f = type(self)(a,-b);
-                  facdict[f] += e;
-                  self /= f;
-                  break;
-              r = rational(-b,a);
-              if r not in t :
-                t.add(r);
-                if not self(r) :
-                  f = type(self)(a,b);
-                  facdict[f] += e;
-                  self /= f;
-                  break;
-            else : continue;
-            break;
-          else : break;
-      facdict[self] += e;
+        from . ffield import ffield
+        if self.degree > 1 :
+          for p in primes(int(max(map(lambda x:abs(x),self))*exp(self.degree))+1) :
+            F = ffield(p);
+            poly = self.mapcoeffs(F);    # map to GF(p)
+            poly /= poly[-1];    # make monic
+            facs = poly.factor();
+            if sum(facs.values()) > len(facs) :    # not square free
+              continue;
+            c = 1;    # number of factors to combine
+            t = set();   # combinations already tried and failed
+            v = set();   # combinations to avoid
+            while self.degree > 1 and c <= len(facs)>>1 :
+              for facc in combinations(facs,c) :
+                # facc = set(facc);  # to make order-independent
+                if facc in v :
+                  continue;
+                fac = product(facc);
+                for d in divisors(int(self._p[0])) :
+                  g = (d*fac).mapcoeffs(lambda x:x.x-p if p>>1 < x.x else x.x);
+                  if not self._p[-1]%g._p[-1] and not self%g :
+                    facdict[g] += e;
+                    self //= g;
+                    for fac in facc :
+                      del facs[fac];
+                    v |= t;
+                    t.clear();
+                    break;
+                else :
+                  t.add(facc);
+                  continue;
+                break;
+              else :
+                c += 1;
+                t.clear();
+                v.clear();
+            break;    # GF(p) factorization successfully uplifted
+      if self != 1 :
+        facdict[self] += e;
+  
+  # Q[x] factoring algorithm:
+  # First, extract lcm of coefficient denominators,
+  #  and factor resulting Z[x] polynomial ...
+  # Given a Z[x] polynomial of degree > 1 with nonzero constant term and with
+  #  integer coefficients whose gcd is 1,
+  # for each prime p > max abs coefficient * exp(degree) :
+  #   mapcoeffs to ffield(p) and divide by leading coefficient to make monic
+  #   factor resutling GF(p) polynomial
+  #   if not square free, continue to next prime
+  #   set c = 1 (c is the number of factors to combine into a trial factor)
+  #   while self.degree > 1 and 2c <= number of factors :
+  #     for each combination of c factors :
+  #       trial factor is product of those c factors
+  #       for each (positive) divisor d of high order coefficient of self :
+  #         multiply coeffs by d
+  #         map coeffs back to SIGNED integers, getting polynomial g
+  #         if constant term of g is divisor of constant term of self and
+  #           if self % g is 0, append that factor,
+  #             self //= g, delete the c factors, break
+  #          the other one is irreducible as well and we're done)
+  #       else (if not factor g), continue with other combinations
+  #     else (if no combinations of c factors work), c += 1
+  # NOTE: we may need to try multiple primes if factorization not square free
+  # NOTE: we need to try combinations of GF(p) factors to get factors
+  #  irreducible over Q[x] but not over any GF(p), e.g., x^4+1.
 
   def mapcoeffs(self,f) :
     """Apply f to each coefficient and return the resulting polynomial"""
