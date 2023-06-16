@@ -7,7 +7,7 @@ long_description = (here/"README.md").open(encoding="utf-8").read();
 
 setup(
   name = "msmath",
-  version="1.0.11",
+  version="1.0.12",
   long_description=long_description,
   long_description_content_type="text/markdown",
   url="https://github.com/ms0/msmath",
