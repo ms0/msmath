@@ -537,7 +537,7 @@ if q is not specified, the field is inferred from self's coefficients"""
       if not self[0] : return False;    # multiple of x
       m = lcma(map(lambda x:x.denominator,self._p));
       d = gcda(map(lambda x:x.numerator,self._p));
-      poly = self = self.mapcoeffs(lambda x:int(m*x/d));
+      poly = self = self.mapcoeffs(lambda x:(m*x//d).numerator);
       if self.gcd(self.derivative()).degree > 0 :
         return False;
       for p in primes(self.twicemaxfactorheight+1) :
@@ -608,9 +608,9 @@ if q is not specified, the field is inferred from self's coefficients"""
   def factor(self,facdict=None,e=1) :
     """Return a factorization of polynomial self as a defaultdict(int);
 keys are factors, and values are positive integer exponents.
-If the coefficients are all real (i.e., int or float),
-the coefficients are converted to rationals before factoring
-and the result's coefficients are converted to ints if integers else floats;
+If the coefficients are all real (i.e., integers or rationals or floats),
+they are all converted to rationals before factoring and if any were floats,
+the result's non-integer coefficients are converted to floats;
 nonconstant factors will be square-free and irreducible over the rationals.
 If some coefficients are complex (i.e., xrational or complex),
 factors will be square-free but not necessarily irreducible."""
@@ -623,12 +623,10 @@ factors will be square-free but not necessarily irreducible."""
     for x in self :
       types.add(type(x));
     if set() < types <= REAL and not types <= RATIONAL :
-      if types <= INT :
-        for k,v in iteritems(self.mapcoeffs(rational).factor()) :
-          facdict[k.mapcoeffs(int_float)] += v;
-      else :
+      self = self.mapcoeffs(rational);
+      if float in types :
         f = 1;
-        for k,v in iteritems(self.mapcoeffs(rational).factor()) :
+        for k,v in iteritems(self.factor()) :
           if not k.degree :
             f *= k._p[0]**v;
           elif k.degree > 0 :
@@ -639,11 +637,13 @@ factors will be square-free but not necessarily irreducible."""
             facdict[k.mapcoeffs(int_float)] += v;
         if f != 1 :
           facdict[type(self)(int_float(f))] += 1;
-      return facdict;
+        return facdict;
     elif types <= COMPLEX and not types <= XRATIONAL :
-      for k,v in iteritems(self.mapcoeffs(xrational).factor()) :
-        facdict[k.mapcoeffs(complex)] += v;
-      return facdict;
+      self = self.mapcoeffs(xrational);
+      if float in types or complex in types :
+        for k,v in iteritems(self.factor()) :
+          facdict[k.mapcoeffs(complex)] += v;
+        return facdict;
     if self._p[0]**2 != self._p[0] :
       facdict[type(self)(self._p[0])] += e;
       self /= self._p[0];    # make monic
@@ -738,9 +738,11 @@ factors will be square-free but not necessarily irreducible."""
         m = lcma(map(lambda x:x.denominator,self._p));
         if m != 1 :
           facdict[type(self)(rational(1,m))] += e;
-          self = self.mapcoeffs(lambda x:m*x);
-        m = 1;    # combine constant factors
-        i = [];
+          self = self.mapcoeffs(lambda x:(m*x).numerator);
+          m = 1;
+        else :
+          self = self.mapcoeffs(lambda x:x.numerator);
+        i = [];    # combine constant factors
         for f,k in facdict.items() :
           if f.degree == 0 :
             i.append(f);
