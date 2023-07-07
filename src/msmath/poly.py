@@ -7,7 +7,7 @@ import sys
 from itertools import chain, count, combinations
 from collections import defaultdict
 from . matrix import product, bmatrix
-from . rational import rational, xrational, inf, realize, sqrt
+from . rational import rational, xrational, inf, realize, root
 from . conversions import bit_length, xrange, isint, iteritems, isffield, lmap
 from . numfuns import factor, factors, leastfactor, ffactors, primepower, modpow, isirreducible, isprimitive, gcda, lcma, divisors, primes
 from random import randrange,randint
@@ -830,7 +830,7 @@ factors will be square-free but not necessarily irreducible."""
   def twicemaxfactorheight(self) :
     """Return twice max possible height of any irreducible factor of Z[x] poly
     using K.Mahler's version of Gelfond formula for any factor's max height"""
-    return int((max(map(abs,self))*sqrt(self.degree+1))<<self.degree);
+    return root((max(map(abs,self))**2*(self.degree+1))<<(2*self.degree),2);
 
   @staticmethod
   def unfactor(facdict,p=None) :

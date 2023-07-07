@@ -54,7 +54,7 @@ def sgn(x) :
   return -1 if x < 0 else 1 if x > 0 else _nan if x else 0;
 
 def root(a,n) :
-  """Return the nth root of a, where a and n are positive integers"""
+  """Return int within 1 of nth root of a, where a and n are positive integers"""
   try :
     l = _mlog(a,2)/n;
   except OverflowError :
