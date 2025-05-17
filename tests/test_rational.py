@@ -42,7 +42,7 @@ def timing(name,stmt,repeats=16,nargs=1,plex=0) :
   t = timeit(
     stmt=stmt if not '[i]' in stmt else
     'for i in %s(0,%d,%d):%s'%(xrange.__name__,repeats*nargs,nargs,stmt),
-    setup='from rational import rational,xrational,qrational,set_significance,exp,sin,cos,tan,log,asin,acos,atan,atan2,sinh,cosh,tanh,asinh,acosh,atanh,erf,erfc,gamma,lgamma,digamma,fsum\nfrom test_rational import random\nr=[qrational(2*random()-1,2*random()-1,2*random()-1,2*random()-1) if %d > 1 else xrational(2*random()-1,2*random()-1) if %d else 2*random()-1 for _ in %s(%d)]\nu=[(1+x.real)/2 for x in r]'%(plex,plex,xrange.__name__,repeats*nargs),
+    setup='from msmath.rational import rational,xrational,qrational,set_significance,exp,sin,cos,tan,log,asin,acos,atan,atan2,sinh,cosh,tanh,asinh,acosh,atanh,erf,erfc,gamma,lgamma,digamma,fsum\nfrom test_rational import random\nr=[qrational(2*random()-1,2*random()-1,2*random()-1,2*random()-1) if %d > 1 else xrational(2*random()-1,2*random()-1) if %d else 2*random()-1 for _ in %s(%d)]\nu=[(1+x.real)/2 for x in r]'%(plex,plex,xrange.__name__,repeats*nargs),
     timer=process_time,number=1);
   print('%s\t%f'%(name,t/repeats));
 
