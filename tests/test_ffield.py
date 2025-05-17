@@ -426,7 +426,7 @@ def timing(name,G,stmt,repeats=16,nargs=1) :
   t = timeit(
     stmt=stmt if not '[i]' in stmt else
     'for i in %s(0,%d,%d):%s'%(xrange.__name__,repeats*nargs,nargs,stmt),
-    setup='from ffield import _ffield\nfrom test_ffield import R\nG=_ffield[%s]\nr=tuple(G(R.randrange(G.q)) for _ in %s(%d))'%(
+    setup='from msmath.ffield import _ffield\nfrom test_ffield import R\nG=_ffield[%s]\nr=tuple(G(R.randrange(G.q)) for _ in %s(%d))'%(
       G.id,xrange.__name__,repeats*nargs),
     timer=process_time,number=1);
   print('%s\t%s\t%.6f'%(G.__name__,name,t/repeats));
