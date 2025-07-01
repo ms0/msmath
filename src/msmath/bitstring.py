@@ -4,7 +4,8 @@ __all__ = ['bitstrings']
 
 # big-endian version implemented with list of ints
 
-from . conversions import isint, lmap, xrange, bit_length
+from conversions import isint, lmap, xrange, bit_length
+from numfuns import xm2gcd
 
 inf = float('inf');
 
@@ -340,7 +341,9 @@ def __ixor__(self,other) :
   B = self._B;
   l = self._l;
   x = self._x;
-  if isinstance(type(other),bitstrings) and l == other._l :
+  if isinstance(type(other),bitstrings) :
+    if l != other._l :
+      raise TypeError('bitstrings must have same length');
     if l <= B :
       self._x ^= __int__(other);
       return self;
@@ -376,7 +379,9 @@ def __iand__(self,other) :
   B = self._B;
   l = self._l;
   x = self._x;
-  if isinstance(type(other),bitstrings) and l == other._l :
+  if isinstance(type(other),bitstrings) :
+    if l != other._l :
+      raise TypeError('bitstrings must have same length');
     if l <= B :
       self._x &= __int__(other);
       return self;
@@ -411,7 +416,9 @@ def __ior__(self,other) :
   B = self._B;
   l = self._l;
   x = self._x;
-  if isinstance(type(other),bitstrings) and l == other._l :
+  if isinstance(type(other),bitstrings) :
+    if l != other._l :
+      raise TypeError('bitstrings must have same length');
     if l <= B :
       self._x |= __int__(other);
       return self;
@@ -446,14 +453,20 @@ def __iadd__(self,other) :
   """Add other to self, discard carry"""
   B = self._B;
   l = self._l;
-  if isinstance(type(other),bitstrings) and l == other._l or \
-     isint(other) and -1 <= other>>l <= 0 :
-    if l <= B :
-      self._x = (self._x+int(other))&((1<<l)-1);
-    else :
-      self._x = _chunkify((int(self)+int(other))&((1<<l)-1),l,B);
-    return self;
-  return NotImplemented;
+  if isinstance(type(other),bitstrings) :
+    if l != other._l :
+      raise TypeError('bitstrings must have same length');
+    other = int(other);
+  elif isint(other) :
+    if not (-1 <= other>>l <= 0) :
+      raise ValueError('int has too many bits');
+  else :
+    return NotImplemented;
+  if l <= B :
+    self._x = (self._x+other)&((1<<l)-1);
+  else :
+    self._x = _chunkify((int(self)+other)&((1<<l)-1),l,B);
+  return self;
 
 def __add__(self,other) :
   """Return sum of self and other, discarding carry"""
@@ -465,14 +478,19 @@ def __isub__(self,other) :
   """Subtract other from self, discarding carry"""
   B = self._B;
   l = self._l;
-  if isinstance(type(other),bitstrings) and self._l == other._l or \
-     isint(other) and -1 <= other>>l <= 0 :
-    if l <= B :
-      self._x = (self._x-int(other))&((1<<l)-1);
-    else :
-      self._x = _chunkify((int(self)-int(other))&((1<<l)-1),l,B);
+  if isinstance(type(other),bitstrings) :
+    if l != other._l :
+      raise TypeError('bitstrings must have same length');
+    other = int(other);
+  elif isint(other) :
+    if not (-1 <= other>>l <= 0) :
+      raise ValueError('int has too many bits');
   else :
     return NotImplemented;
+  if l <= B :
+    self._x = (self._x-other)&((1<<l)-1);
+  else :
+    self._x = _chunkify((int(self)-other)&((1<<l)-1),l,B);
   return self;
 
 def __sub__(self,other) :
@@ -482,8 +500,11 @@ def __sub__(self,other) :
 def __rsub__(self,other) :
   """Return other minus self, discarding carry"""
   l = self._l;
-  if isint(other) and -1 <= other>>l <= 0 :
-    return type(self)((other-__int__(self))&((1<<l)-1), l);
+  if isint(other) :
+    if -1 <= other>>l <= 0 :
+      return type(self)((other-int(self))&((1<<l)-1), l);
+    else :
+      return ValueError('int has too many bits');
   return NotImplemented;
 
 
@@ -821,27 +842,98 @@ def __trunc__(self,l) :
   return r;
 
 def __imul__(self,n) :
-  """Concatenate the bitstring to itself |n| times, bitreversed if n < 0"""
-  if not isint(n) :
-    raise TypeError("Can't multiply bitstring by non int");
-  if n <= 0 :
-    if n :
-      n = -n;
-      l = self._l;
-      for i in xrange(l//2) :
-        self[i],self[l-1-i] = self[l-1-i],self[i];
-    else :
-      self._x = 0;
-      self._l = 0;
-  if n > 1 :
-    y = type(self)(self);
-    for _ in xrange(n-1) :
-      self.iconcat(y);
-  return self;
+  """If n is an int,
+  concatenate the bitstring to itself |n| times, bitreversed if n < 0.
+  If n is a bitstring with length len(self),
+  treat both bitstrings as GF(2) polynomials and multiply mod x^l-1."""
+  if isint(n) :
+    if n <= 0 :
+      if n :
+        n = -n;
+        l = self._l;
+        for i in xrange(l//2) :
+          self[i],self[l-1-i] = self[l-1-i],self[i];
+      else :
+        self._x = 0;
+        self._l = 0;
+    if n > 1 :
+      y = type(self)(self);
+      for _ in xrange(n-1) :
+        self.iconcat(y);
+    return self;
+  elif isinstance(type(n),bitstrings) :
+    if self._l != n._l :
+      raise TypeError('bitstrings must have same length');
+    m = type(self)(self);
+    if n is self :
+      n = type(self)(n);
+    self &= 0;
+    for i in range(self._l) :
+      if n[i] : self ^= m;
+      m >>= 1;
+    return self;
+  return NotImplemented;
 
 def __mul__(self,n) :
-  """Return a bitstring comprising |n| copies of self, bitreversed if n < 0"""
+  """If n is an integer,
+  return a bitstring comprising |n| copies of self, bitreversed if n < 0.
+  If n is a bitstring of length l = len(self),
+  return product of the two bitstrings, treated as GF(2) polynomials mod x^l-1.
+"""
   return __imul__(type(self)(self),n);
+
+def __itruediv__(self,other) :
+  if isinstance(type(other),bitstrings) :
+    if self._l != other._l :
+      raise TypeError('bitstrings must have same length');
+    return __imul__(self,__pow__(other,-1));
+  return NotImplemented
+
+def __truediv__(self,other) :
+  return __itruediv__(type(self)(self),other);
+
+def __rtruediv__(self,n) :
+  if n==1 :
+    return __pow__(self,-1);
+  else :
+    return NotImplemented;
+    
+def __ipow__(self,e) :
+  """Return nonnegative integer power n of self using bitstring multiplication"""
+  if isint(e) :
+    l = self._l;
+    B = self._B;
+    if e <= 1 :
+      if e <= 0 :
+        if e :
+          g,u,v = xm2gcd((1<<l)+1,int(self)) ; # + not | to handle l == 0
+          if g != 1 :
+            raise ZeroDivisionError('base has no inverse');
+          if l > 2 :
+            v = (v>>2) | ((v&3)<<(l-2));    # convert lsb 0 -> msb 0
+        else :
+          v = (1<<l)>>1;    # in case l==0
+        if l <= B :
+          self._x = v;
+        else :
+          self._x = _chunkify(v,l,B);
+        e = -e;
+      if e <= 1 :
+        return self;
+    b = type(self)(self);
+    n = 1 << (bit_length(e)-2);
+    while n :
+      self *= self;
+      if e&n :
+        self *= b;
+      n >>= 1;
+    return self;
+  else :
+    return NotImplemented;
+
+def __pow__(self,e) :
+  """Return nonnegative integer power e of self using bitstring multiplication"""
+  return __ipow__(type(self)(self),e);
 
 def __split__(self,C) :
   """Return a list of type(self) elements whose concatenation == self.
@@ -939,8 +1031,13 @@ class bitstrings(type) :
              __pos__=__pos__,
              __getitem__=__getitem__,
              __setitem__=__setitem__,
-             __imul__=__imul__,      # repeat (int other), or concat (bitstring other)
+             __imul__=__imul__,  # repeat (int other), or convolve (bitstrings)
              __mul__=__mul__,
+             __ipow__=__ipow__,
+             __pow__=__pow__,
+             __itruediv__=__itruediv__,
+             __truediv__=__truediv__,
+             __rtruediv__=__rtruediv__,
              __ilshift__=__ilshift__,    # rotate left
              __irshift__=__irshift__,    # roate right
              __lshift__=__lshift__,
