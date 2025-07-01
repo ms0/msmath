@@ -1,7 +1,7 @@
 from __future__ import print_function
 from __future__ import division
 
-from msmath.conversions import xrange
+from msmath.conversions import xrange, bit_length
 
 from random import Random, randrange, randint
 from itertools import chain
@@ -14,7 +14,34 @@ try:
 except Exception :
   process_time = default_timer;
 
-from msmath.bitstring import bitstrings, _CB
+from msmath.bitstring import bitstrings, _CB, bitstring
+
+from msmath.ffield import ffield
+from msmath.poly import polynomial as poly
+
+GF2 = ffield(2);
+
+def bitstring2poly(b) :
+  """Return GF(2) polynomial representing bitstring, p[i] = b[i]"""
+  return poly(*b[::-1]).mapcoeffs(GF2);
+
+b2p = bitstring2poly;
+
+def poly2bitstring(p,n=None) :
+  """Return |n|-bit bitstring representing GF(2) polynomial, b[i] becomes p[i],
+  if n is 0, len(b) = max(0,p.degree+1), if n is negative, b[i+n] becomes p[i]"""
+  return bitstring(p.mapcoeffs(int)(2),-(n or max(0,p.degree+1)));
+
+p2b = poly2bitstring;
+
+def polyconv(a,b,n=0) :
+  """Return a*b%(x^n-1), with n = max(n,1+a.degree,1+b.degree) """
+  n = max(n,1+a.degree,1+b.degree);
+  return a*b%(poly(1,*(0 for _ in range(n-1)),-1).mapcoeffs(GF2));
+
+pc = polyconv;
+
+bm = lambda a,b: p2b(pc(b2p(a),b2p(b),len(a)),len(a));
 
 def b3x(b) :
   """transform string-based bitstring for sha3 input/output"""
@@ -50,6 +77,19 @@ def test1(bs) :
   ceq('v[0]*-1==v[0][::-1]',b);
   ceq('v[0]*0==type(v[0])()',b);
   ceq('len(v[0]*3)==len(v[0]*-3)==len(v[0])*3',b);
+  ceq('v[0]**1==v[0]',b);
+  ceq('v[0]**2==v[0]*v[0]',b);
+  ceq('v[0]**3==v[0]*v[0]*v[0]',b);  
+  o = bs(1<<(l-1),l) if l else bs();
+  ceq('v[0]**0==v[1]',b,o);
+  try :
+    c = 1/b;
+    ceq('v[0]**-1==v[1]',b,c);
+    ceq('v[0]/v[0]==v[1]',b,o);
+    ceq('v[1]*v[0]/v[1]==v[0]',b,c);
+    ceq('v[0]*v[0]**-2==v[1]',b,c);
+  except ZeroDivisionError :
+    pass;
   i = randint(1,64);
   ceq('len(v[0].split(v[1]))==(v[2]+v[1]-1)//v[1]',b,i,l);
   ceq('len(v[0].split(-v[1]))==(v[2]+v[1]-1)//v[1]',b,i,l);
@@ -90,6 +130,13 @@ def test1(bs) :
   ceq('int(v[0]&v[1])==v[2]',b,c,x&y);
   ceq('int(v[0]+v[1])==v[2]',b,c,(x+y)&m);
   ceq('int(v[0]-v[1])==v[2]',b,c,(x-y)&m);
+  ceq('v[0]*v[1]==v[2]',b,c,bm(b,c));
+  try :
+    1/c;
+    ceq('v[0]/v[1]*v[1]==v[0]',b,c);
+    ceq('v[0]*v[1]/v[1]==v[0]',b,c);
+  except ZeroDivisionError :
+    pass;
 
 def test2(b1,b2) :
   """test pairs of bitstring types"""
@@ -162,12 +209,14 @@ def timetest2(B,C) :
   timing('or',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b|c');
   timing('add',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b+c');
   timing('sub',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b-c');
+  timing('mul',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b*c');
   timing('iconcat',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b.iconcat(c)');
   timing('ixor',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b^=c');
   timing('iand',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b&=c');
   timing('ior',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b|=c');
   timing('iadd',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b+=c');
   timing('isub',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b-=c');
+  timing('imul',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b*=c');
   timing('split',B,C,'b=bb(7**365,1025)','b.split(bc._B)');
   timing('split-',B,C,'b=bb(7**365,1025)','b.split(-bc._B)');
   
