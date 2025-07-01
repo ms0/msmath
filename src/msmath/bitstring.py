@@ -4,8 +4,8 @@ __all__ = ['bitstrings']
 
 # big-endian version implemented with list of ints
 
-from conversions import isint, lmap, xrange, bit_length
-from numfuns import xm2gcd
+from . conversions import isint, lmap, xrange, bit_length
+from . numfuns import xm2gcd
 
 inf = float('inf');
 
