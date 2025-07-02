@@ -37,6 +37,7 @@ p2b = poly2bitstring;
 zero = GF2(0);
 one = GF2(1);
 
+
 def xnp1(n) :    # generate coeffs of x**n+1, but of x+1 if n is zero
   yield one;
   for _ in range(n-1) : yield zero;
@@ -190,7 +191,8 @@ R.seed(0);
 # (3) concatenation
 # (4) truncation
 # (5) scalar multiplication (*)
-# (6) b3x
+# (6) multiplication, division, exponentiation
+# (7) b3x
 
 def timetest1(B) :
   timing('create',B,B,'x,y=3**646,1024','bb(x,y)');
@@ -208,7 +210,7 @@ def timetest1(B) :
   timing('trunc-h',B,B,'b=bb(3**646,1024)','b.trunc(-511)');
   timing('itrunc',B,B,'b=bb(3**646,1024)','b.itrunc(511)');
   timing('itrunc-',B,B,'b=bb(3**646,1024)','b.itrunc(-511)');  
-
+  timing('1/x',B,B,'b=bb(7**364,1024)','1/b',10);
 
 def timetest2(B,C) :
   timing('convert',B,C,'b=bb(3**646,1024)','bc(b)');
@@ -218,14 +220,14 @@ def timetest2(B,C) :
   timing('or',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b|c');
   timing('add',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b+c');
   timing('sub',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b-c');
-  timing('mul',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b*c');
+  timing('mul',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b*c',10);
   timing('iconcat',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b.iconcat(c)');
   timing('ixor',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b^=c');
   timing('iand',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b&=c');
   timing('ior',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b|=c');
   timing('iadd',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b+=c');
   timing('isub',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b-=c');
-  timing('imul',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b*=c');
+  timing('imul',B,C,'b=bb(3**646,1024);c=bc(5**441,1024)','b*=c',10);
   timing('split',B,C,'b=bb(7**365,1025)','b.split(bc._B)');
   timing('split-',B,C,'b=bb(7**365,1025)','b.split(-bc._B)');
   
