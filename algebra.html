@@ -1,0 +1,394 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@15.2.0/lib/browser/math.min.js">
+</script>
+<script>
+
+var newmath;
+
+function init() {
+  newmath = document.getElementById('newmath');
+  initmmx();
+}
+
+function showpopup(o,s) {
+  var b = document.body.getClientRects()[0];
+  var r = o.getClientRects()[0];
+  o = document.getElementById(s);
+  o.style.display='block';
+  var q = o.getClientRects()[0];
+  o.style.position = 'absolute';
+  o.style.left = Math.max(window.scrollX,
+			  Math.min(window.scrollX+window.innerWidth-q.width,
+				   (r.width-q.width)/2))+'px';
+  o.style.top = Math.max(window.scrollY,
+			 Math.min(window.scrollY+window.innerHeight-q.height,
+				  (r.top+r.bottom-q.height)/2-b.top))+'px';
+}
+
+/****************************************************************
+  Matrix multiplication exercise
+****************************************************************/
+var keyboard;
+
+var ABC;    // matrices for matrix multiplication
+
+var target;    // target for input
+var targetrow;
+var targetcol;
+
+function initmmx() {
+  keyboard = document.getElementById('keyboard');
+  keyboard.addEventListener('input',keystroke);
+  keyboard.value = '';
+  keyboard.addEventListener('keydown',tabcheck);
+}
+
+function showmmx(o) {
+  var newmath = document.getElementById('newmath')
+  ABC = createMM();
+  var D = ABC.D = math.zeros(ABC.C.size(),'dense');
+  for (var i = D.size()[0]; i--;) {
+    for (var j = D.size()[1]; j--;) {
+      D.set([i,j],'?');
+    }
+  }
+  drawABD();
+  showpopup(o,'mmx');
+}
+
+function drawABD() {
+  MathJax.typesetClear([newmath]);
+  newmath.innerHTML =
+    '\\[\\class{A}{' + math2tex(ABC.A) + '}\\class{B}{' + math2tex(ABC.B) +
+    '}=\\class{C}{' + math2tex(ABC.D) + '}\\]';
+  MathJax.typeset([newmath]);  
+  var i,j,d,t;
+  for (i=0; i<math.size(ABC.C)[0]; i++) {
+    for (j=0; j<math.size(ABC.C)[1]; j++) {
+      t = document.querySelector('.C .row'+i+'.col'+j);
+      t.addEventListener('click',enableCInput);
+      var d = ABC.D.get([i,j]);
+      if (typeof(d) != 'string' &&
+	  math.equal(ABC.D.get([i,j]),ABC.C.get([i,j]))) {
+	t.classList.remove('wrong')
+	t.classList.add('right');
+      } else {
+	t.classList.remove('right');
+	if (d != '?') t.classList.add('wrong');
+      }
+    }
+  }
+}
+
+function tabcheck(event) {
+  if (event.key == 'Tab') {
+    try {
+      rc = math.size(ABC.C);
+    } catch {
+      return;
+    }
+    highlightArowBcol(targetrow,targetcol,false);
+    d = event.shiftKey ? -1 : 1;
+    targetcol += d;
+    if (targetcol < 0) {
+      targetcol = rc[1]-1;
+      if (--targetrow < 0) {
+	targetrow = rc[0]-1;
+      }
+    } else if (targetcol >= rc[1]) {
+      targetcol = 0;
+      if (++targetrow >= rc[0]) {
+	targetrow = 0;
+      }
+    };
+    target.classList.remove('selected');
+    target = document.querySelector('.C .row'+targetrow+'.col'+targetcol);
+    target.classList.add('selected');
+    highlightArowBcol(targetrow,targetcol,true);
+    event.stopPropagation();
+    event.preventDefault();
+    var v = ABC.D.get([targetrow,targetcol]);
+    if (v == '?') {
+      v = '';
+    } else {
+      v = math.string(v);
+    }
+    keyboard.value=v;
+    keyboard.focus();
+  }
+}
+
+function keystroke(event) {
+  var error;
+  var v;
+  var iv = event.target.value || '?';
+  try {
+    v = math.fraction(iv);
+    if (v.d == 1) {
+      if (iv.length == 1 && '+-'.indexOf(iv) >= 0) throw new Error('+-');
+      v = v.s*v.n;
+    } else {
+      v = '\\frac{' + v.s*v.n + '}{' + v.d + '}';
+    }
+  } catch (error) {
+    v = iv;
+  } finally {
+  }
+  ABC.D.set([targetrow,targetcol],v);
+  drawABD();  
+  target = document.querySelector('.C .row'+targetrow+'.col'+targetcol);
+  target.classList.add('selected');
+  highlightArowBcol(targetrow,targetcol,true);
+}
+
+function highlight(o) {
+  o.classList.add('highlight');
+}
+
+function lowlight(o) {
+  o.classList.remove('highlight');
+}
+
+function highlightArowBcol(r,c,b) {
+  document.querySelectorAll('.A .row'+r).forEach(b?highlight:lowlight);
+  document.querySelectorAll('.B .col'+c).forEach(b?highlight:lowlight);
+}
+
+const rownum = /row(\d+)/
+const colnum = /col(\d+)/
+
+function enableCInput(event) {
+  var i,j;
+  event.stopPropagation();
+  event.preventDefault();
+  target = event.target.closest('[class^="row"],[class*=" row"]');
+  keyboard.focus();
+  document.querySelectorAll('.selected').forEach(
+    function(o) {
+      o.classList.remove('selected');
+      i = 1*rownum.exec(o.className)[1];
+      j = 1*colnum.exec(o.className)[1];
+      highlightArowBcol(i,j,false);
+    }
+  )
+  targetrow = i = 1*rownum.exec(target.className)[1];
+  targetcol = j = 1*colnum.exec(target.className)[1];
+  target.classList.add('selected');
+  highlightArowBcol(i,j,true);
+  var v = ABC.D.get([i,j]);
+  if (v == '?') {
+    v = '';
+  } else {
+    v = math.string(v);
+  }
+  keyboard.value = v;
+}
+
+function randint(a,b) {
+  if (b == undefined) {
+    b = a;
+    a = -a;
+  }
+  return a+Math.floor((b-a+1)*Math.random());
+}
+
+function randint5() {
+  return randint(5);
+}
+
+function createMM() {
+  // create random matrix multiplication problem
+  // first, pick dimesions l,m,n
+  var i = randint(2,4);
+  var j = randint(2,4);
+  var k = randint(2,4);
+  // now, pick random (i+k)j elements in range [-5,5]
+  var A = math.matrixFromFunction([i,j],randint5,'dense');
+  var B = math.matrixFromFunction([j,k],randint5,'dense');
+  var C = math.multiply(A,B);
+  return {A:A,B:B,C:C};
+}
+
+// when select product matrix element, highlight relevant row of A and col of B
+// must call highlight whenever we rerun math2tex!
+// use classes: rowi, colj [per element]; selected; argA, argB, argC [per matrix]
+// so how do we insert these classes in the below function?
+// how about we add a dictionary argument? 
+
+function math2tex(x) {
+  switch(math.typeOf(x)) {
+  case 'number':
+  case 'bigint':
+  case 'bigNumber':
+  case 'string':
+    return math.string(x);
+  case 'Fraction':
+    return '\\fraction{'+math2tex(x.n)+'}{'+math2tex(x.d)+'}';
+  case 'DenseMatrix' :
+    var s = '\\begin{bmatrix}';
+    var z = math.size(x);
+    for (i = 0; i < z[0]; i++) {
+      for (j = 0; j < z[1]; j++) {
+	s += '\\class{row'+i+' col'+j+'}{'
+	s += math2tex(x.get([i,j]))+'}&';
+      }
+      s = s.slice(0,-1) + '\\\\';
+    }
+    return s.slice(0,-2) + '\\end{bmatrix}';
+  default:
+    throw new Error('Unrecognized math type '+math.typeOf(x));
+  }
+}
+</script>
+<style>
+span {
+  text-decoration:underline;
+  cursor:context-menu;
+}
+.red {
+  text-decoration:none;
+  color:red;
+}
+.green {
+  text-decoration:none;
+  color:green;
+}
+.blue {
+  text-decoration:none;
+  color:blue;
+}
+h1 {
+  text-align:center;
+  font-size:18pt;
+}
+h2 {
+  text-align:center;
+  font-size:14pt;
+}
+:has(> .highlight) {background-color:yellow;}
+:has(> .wrong) {background-color:pink;}
+:has(> .selected) {background-color:orange;}
+:has(> .right) {background-color:lightgreen;}
+#keyboard {
+  position:fixed;
+  top:-100px;
+  left:-100px;
+}
+.popup {
+  background-color:white;
+  display:none;
+  z-index:1;
+  position:absolute;
+  top:0;
+  left:0;
+  padding:6px;
+  margin:6px;
+  border:1px solid black;
+  max-width:inherit;
+}
+body {
+  max-width:820px;
+}
+.indent {
+  margin-left:1em;
+}
+p.top {
+  background-color:white;
+  z-index:1;
+  position:fixed;
+  left:0;top:0;
+  text-align:left;
+  font-size:.75em;
+  margin:0;
+}
+</style>
+</head>
+<body id='body' onload="init()" onresize="init()">
+<input id='keyboard'></input>
+<p class='top'>
+  <a href='fib.html'>Fi &amp; Lu</a>&nbsp;
+  <a href='area.html'>Area</a>&nbsp;
+  <a href='algebra.html'>Algebra</a>
+  <a href='trig.html'>Trigonometry</a>&nbsp;
+  <a href='func.html'>Functions</a>&nbsp;
+  <a href='complex.html'>Complex Numbers</a>&nbsp;
+  <a href='calc.html'>Calculus</a>
+</p>
+<h1>Fi and Lu assess algebra</h1>
+<p>After seeing Mom use algebra to talk about triangles, Lu wanted to know more. Would Fi be able to understand as well? Mom began to explain why algebra is so useful.</p>
+<p>&ldquo;Algebra is the written language of mathematics. It allows us to express ideas about numbers and other abstract concepts in a very precise manner. We wouldn&rsquo;t have modern technology without algebra.</p>
+<p>&ldquo;When we learn arithmetic, we learn to write numbers with digits, and we learn a few symbols to express operations on those numbers. We use the plus sign (\(+\)) for addition, the minus sign (\(-\)) for subtraction, the times sign (\(\times\)) for multiplication, and the obelus (\(\div\)) for division. There&rsquo;s also comparison signs: \(=\) (equal to), \(\neq\) (not equal to), \(<\) (less than), \(\leq\) (less than or equal to), \(\geq\) (greater than or equal to), and \(>\) (greater than). Algebra adds a few more symbols, but, more importantly, uses letters to represent generic or unknown numbers. That allows us to express ideas about numbers and their relationships.</p>
+<p>&ldquo;And, just as natural language has rules about how to interpret a sequence of words, algebra has rules about how to interpret a string of symbols. Some of the first rules tell us in which order to do operations. These rules are themselves applied in a particular order determined by their precedence, with the highest precedence rules applied first. In order of precedence, from high to low, these rules involve parentheses, <span onclick="showpopup(this,'exponent')">exponentiation</span>, unary negation, multiplication and division, addition and subtraction:</p>
+<p class="indent">The parenthesis rule says that the sequence of symbols delimited by a pair of matching parentheses is interpreted first. If there are nested pairs, the innermost pair should be handled first. \(3\times(5+7) = 3\times 12 = 36\) vs \(3\times 5+7 = 15+7=22\).</p>
+<p class="indent">The exponent rule says that the sequence of symbols that is the exponent should be interpreted before doing the exponentiation. If there are multiple levels of exponents, the topmost one should be interpreted first. \(2^{1+2} = 2^3 = 8\). \(2^{3^2} = 2^9 = 512\).</p>
+<p class="indent">The unary negation rule tells us to treat a unary minus as if it were \((-1)\times\). \(-2^4=-1\times 2^4 = -1\times 16 = -16\).</p>
+<p class="indent">The multiplication/division rule tells us to apply \(\times\) and \(\div\) left to right. \(2\times 3\times 4\times 5\div 6\times 7 = 6\times 4\times 5\div 6\times 7 = 24\times 5\div 6\times 7 = 120\div 6\times 7 = 20\times 7 = 140\). </p>
+<p class="indent">The addition/subtraction rule tells us to apply \(+\) and \(-\) left to right. \(1+2+3-4+5 = 3+3-4+5 = 6-4+5 = 2+5 = 7\).</p>
+<p>&ldquo;Here&rsquo;s another example, shown one <span class='red'>rule application</span> at a time and <span class='green'>results of the previous rule application</span>:
+\begin{align*} & 6+5\times 4-3+2^{1+2}\times\class{red}{(3+4)}-5 \\ &= 6+5\times 4-3+2^\class{red}{1+2}\times \class{green}{7}-5 \\ &= 6+5\times 4-3+\class{red}{2}^\class{green}{3}\times 7-5 \\ &= 6+\class{red}{5\times 4}-3+\class{green}{8}\class{red}{\times 7}-5 \\ &= \class{red}{6+}\class{green}{20}-3+\class{green}{56}-5 \\ &= \class{green}{26}\class{red}{-3}+56-5 \\ &= \class{green}{23}\class{red}{+56}-5 \\&= \class{green}{79}\class{red}{-5} \\ &= \class{green}{74} \end{align*}
+</p>
+<p>&ldquo;When we use (italic) letters to represent numbers, we usually elide the times sign (\(\times\)). When a number is followed by a letter, or two letters are juxtaposed, like \(69x\) or \(ab\), we treat the pair as if they had a times sign between them&mdash;they are to be multiplied together. But sometimes we use a center dot (\(\cdot\)) to indicate multiplication, like \(a\cdot b\) or \(5\cdot 7\). And we hardly ever see a division sign (\(\div\)); instead we just see a slash, or we indicate division with a fraction bar, like \(a/b\) or \(\frac{a}{b}\). Particularly in the latter case, the numerator and denominator are separately interpreted before the division is applied. One other way to indicate division is with a negative exponent: \(a/b = ab^{-1}\).</p>
+<p>&ldquo;Even with numbers, letters used for numbers, symbols for operations, parentheses, superscripts used for exponentiation, and subscripts as we saw for sequence elements, mathematicians found that they had to overload the meanings of certain glyphs. As we&rsquo;ll see when we talk more about functions, the string \(f(x)\) might interpreted as the function \(f\) applied to the argument \(x\), where \(f\) could be any single letter representing a function and where \(x\) might instead be an expression that is evaluated in the usual way. This leads to an ambiguity when interpreting something like \(a(b+c)\)&mdash;it might mean \(a\times(b+c)\) or it might mean apply the function \(a\) to the result of adding \(b\) and \(c\). Experience and context should tell you which interpretation to use.&rdquo;</p>
+<h2>Properties of Addition</h2>
+<p>&ldquo;We can use algebraic notation to express properties of addition. For example, when we add two numbers, it doesn&rsquo;t matter what order we add them in: \(a+b=b+a\). This is called commutativity. When we add three numbers, it doesn&rsquo;t matter which addition we do first: \((a+b)+c=a+(b+c)\). This is called associativity.&rdquo;</p>
+<h2>Properties of Multiplication</h2>
+<p>&ldquo;Multiplication (at least of numbers) is also commutative and associative: \(ab = ba\) and \((ab)c=a(bc)\). Multiplication is also distributive over addition: \(a(b+c) = ab+ac\) and \((a+b)c = ac+bc\).&rdquo;</p>
+<h2>Properties of Exponentiation</h2>
+<p>&ldquo;Exponentiation interacts with addition and multiplication: \(a^{b+c} = a^ba^c\) and \(a^{bc} = (a^b)^c\).&rdquo;</p>
+<h2>Properties of Zero and One</h2>
+<p>&ldquo;Zero is the additive identity: \(a+0 = 0+a = a\). Also \(a\times 0 = 0\times a = 0\).</p>
+<p>&ldquo;One is the multiplicative identity: \(a\times 1 = 1\times a = a\). Also \(a^0 = 1\).&rdquo;</p>
+<h2>Solving Equations</h2>
+<p>&ldquo;Up to now, we&rsquo;ve used comparison signs like = to show relationships that are always true. But there is another use. We can use comparison signs to indicate relationships that we want to be true, and for which we want to know what values to assign to the letters (called <i>variables</i>) so that those relationships are true.</p>
+<p>&ldquo;For example, suppose we want \(x+5=7\). One of the first techniques we use to <i>solve</i> such equations is to perform the same operation to both sides of the equality. In this case, we can subtract 5 from both sides to get \(x+5-5=7-5\) or \(x=2\). We can verify that we&rsquo;ve successfully solved the equation by substituting the value we&rsquo;ve found for \(x\): \(2+5 = 7\).</p>
+<p>&ldquo;A slightly harder example is \(3x+2=5x+8\). In this case we can subtract \(3x\) from both sides to get \(3x+2-3x=5x+8-3x\) or \(2=2x+8\), subtract 8 from both sides to get \(2-8 = 2x+8-8\) or \(-6 = 2x\), and then divide both sides by 2 to get \(-6/2 = 2x/2\) or \(-3 = x\). You may have noticed that we used some properties of addition and multiplication when we did this, in particular we used the commutativity of addition to change \(5x+8-3x\) to \(5x-3x+8\) and then the distributivity of multiplication over addition to change \(5x-3x\) to \((5-3)x\) to \(2x\). A similar transformation occurs on the left side, where we also use the properties of 0 to change \((3-3)x+2\) to \(0x+2\) to \(0+2\) and finally to \(2\). If you wondered about subtraction and division, you should realize that subtraction is just addition of the negative, and division is just multiplication of the inverse, so we just use the properties of addition and multiplication.&rdquo;</p>
+<h2>Systems of Equations</h2>
+<p>&ldquo;Sometimes we have more than one variable and equations relating them. To solve such a system of equations, one useful technique is to use the equations to express one of the variables in terms of the others. Then eliminate that variable by substituting it with the equivalent expression and continue eliminating variables until only one is left. Once we solve for that variable, we can work backwards to find the values of the other variables. For example, suppose we are given
+\begin{align*} 0 &= x+3y+2z-3 \\
+0 &= -x-2y+z-9 \\
+0 &= 2x+y+3z-16 \end{align*}
+&ldquo;We can solve for \(x\) in the first equation to get \(x = 3-3y-2z\). Substituting this for \(x\) in the other two equations, we get
+\begin{align*} 0 &= -\class{red}{(3-3y-2z)} -2y + z - 9 = \class{blue}{y + 3z -12} \\
+ 0 &= 2\class{red}{(3-3y-2z)}+y+3z-16 = \class{blue}{-5y -z -10} \end{align*}
+&ldquo;Now we can solve for \(y\) in the first equation above to get \(y=12-3z\). Substituing this for \(y\) in the remaining equation, we get
+  \begin{align*} 0 &= -5\class{red}{(12-3z)} -z -10 = \class{blue}{14z -70} \end{align*}
+so \(z = 70\div 14 = 5\), which then gives \(y=12-3z=12-15=-3\) and then \(x=3-3y-2z=3+9-10=2\).
+</p>
+<p>&ldquo;It should be clear that to solve a system of equations, you need as many <b>independent</b> equations as there are variables. Independent means that each provides some information not provided by all the others combined. For example, \(x+3y-2z=5\), \(2x-5y+3z=7\), and \(x-8y+5z=2\) are not independent because subtracting the first from the second produces the third. And if the third equation had been \(x-8y+5z=3\), the equations would be inconsistent, with no solution.&rdquo;</p>
+<h2>Matrices</h2>
+<p>&ldquo;When our system of equations is linear, as in the example above, we can simplify the solution process by using matrix algebra. We talked a bit about matrices when we discussed computing Fibonacci and Lucas numbers. We&rsquo;ll describe matrices in more detail now.</p>
+<p>&ldquo;We should first say what we mean by linear equations. These are equations where the only operations are addition and multiplication and the only operands are constants and variables, and no multiplication involves more than one variable. They&rsquo;re called linear because the relationship between \(x\) and \(ax+b\) is a straight line. More formally, a linear transformation might take a set of variables, multiply each by a constant, and add the products together to produce a single result. It could do this many times, with different constants, to produce many results. We can use a rectangular array (a <i>matrix</i>) of constants to specify the linear transformation, where the rule for applying a matrix to a <i>vector</i> of variables is \[\begin{bmatrix}a_{11}&\dots&a_{1n}\\\vdots&\vdots&\vdots\\a_{m1}&\dots&a_{mn}\end{bmatrix} \begin{bmatrix}x_1\\\vdots\\x_n\end{bmatrix} = \begin{bmatrix}a_{11}x_1+\cdots+a_{1n}x_n\\\vdots\\a_{m1}x_1+\cdots+a_{mn}x_n\end{bmatrix}\] You&rsquo;ll notice that when showing the elements of a matrix, we often use just one letter subscripted with row and column numbers rather than using a different letter for each element. In the subscript, we might separate row number from column number with a comma, <i>e.g.</i>, \(a_{r,c}\), but usually elide the comma unless either number requires more than one glyph. And if the matrix has only a single column (or row), then only the row (or column) number is specified and no comma is needed.<p>
+  <p>&ldquo;The above matrix of constants has \(m\) rows and \(n\) columns, so it&rsquo;s an \(m\times n\) matrix (pronounced <i>m by n</i>); \(m\) and \(n\) are the matrix&rsquo;s <i>dimensions</i>. The vector is in fact an \(n\times 1\) matrix. We can apply one matrix to another as long as the number of columns in the first matrix is equal to the number of rows in the second. The first matrix is applied to each column of the second matrix independently to produce the corresponding column of the resulting matrix. This is called matrix multiplication; the product of an \(m\times n\) matrix times an \(n\times k\) matrix is an \(m\times k\) matrix.\[\begin{bmatrix}a_{11}&\dots&a_{1n}\\\vdots&\vdots&\vdots\\a_{m1}&\dots&a_{mn}\end{bmatrix} \begin{bmatrix}b_{11}&\dots&b_{1k}\\\vdots&\vdots&\vdots\\b_{n1}&\dots&b_{nk}\end{bmatrix} =\begin{bmatrix}a_{11}b_{11}+\cdots+a_{1n}b_{n1}&\dots&a_{11}b_{1k}+\cdots+a_{1n}b_{nk}\\\vdots&\vdots&\vdots\\a_{m1}b_{11}+\cdots+a_{mn}b_{n1}&\dots&a_{m1}b_{mk}+\cdots+a_{mn}b_{nk}\end{bmatrix}\] <span onclick="showmmx(this)">Try it yourself.</span> Sometimes, we use sigma notation to succinctly represent matrix multiplication: \[c_{ik} = \sum_{j=1}^n a_{ij} b_{jk}\] Matrix multiplication has many of the properties we associate with multiplication of numbers, in particular, matrix multiplication is associative: if \(\boldsymbol{A}\), \(\boldsymbol{B}\), and \(\boldsymbol{C}\) are three matrices with compatible dimensions, \((\boldsymbol{A}\boldsymbol{B})\boldsymbol{C} = \boldsymbol{A}(\boldsymbol{B}\boldsymbol{C})\). But it&rsquo;s not commutative: \(\boldsymbol{A}\boldsymbol{B}\) is not necessarily the same as \(\boldsymbol{B}\boldsymbol{A}\) even when their dimensions make both products possible and even when both products have the same dimensions (as only happens when both \(\boldsymbol{A}\) and \(\boldsymbol{B}\) are square matrices with equal dimensions). (As you may have guessed, a square matrix is a matrix that has the same number of rows as columns.)</p>
+<p>&ldquo;Matrices can also be added, but only when they have the same dimensions; in that case, addition is performed element by element:\[\begin{bmatrix}a_{11}&\dots&a_{1n}\\\vdots&\vdots&\vdots\\a_{m1}&\dots&a_{mn}\end{bmatrix} +\begin{bmatrix}b_{11}&\dots&b_{1n}\\\vdots&\vdots&\vdots\\b_{m1}&\dots&b_{mn}\end{bmatrix} =\begin{bmatrix}a_{11}+b_{11}&\dots&a_{1n}+b_{1n}\\\vdots&\vdots&\vdots\\a_{m1}+b{m1}&\dots&a_{mn}+b_{mn}\end{bmatrix}\] Matrix addition is associative and communtative, <i>i.e.</i>, \((\boldsymbol{A}+\boldsymbol{B})+\boldsymbol{C} = \boldsymbol{A}+(\boldsymbol{B}+\boldsymbol{C})\) and \(\boldsymbol{A}+\boldsymbol{B} = \boldsymbol{B}+\boldsymbol{A}\). And matrix multiplication distributes over matrix addition: \(\boldsymbol{A}(\boldsymbol{B}+\boldsymbol{C}) = \boldsymbol{A}\boldsymbol{B} + \boldsymbol{A}\boldsymbol{C}\) and \((\boldsymbol{B}+\boldsymbol{C})\boldsymbol{D} = \boldsymbol{B}\boldsymbol{D}+\boldsymbol{C}\boldsymbol{D}\) whenever the matrix additions and multiplications can be done. These matrix arithmetic properties are derived from the associative, commutative, and distributive properties of the matrix elements. But note that element multiplication does not have to be commutative, and even if it is, matrix multiplication isn&rsquo;t.</p>
+<p>&ldquo;The system of equations in the previous section, in matrix form, is \[\begin{bmatrix}1&3&2\\-1&-2&1\\2&1&3\end{bmatrix}\begin{bmatrix}x\\y\\z\end{bmatrix} = \begin{bmatrix}3\\9\\16\end{bmatrix}\]</p>
+<p>This is solved by performing a sequence of <i>row operations</i> that swap two rows, multiply a row by a nonzero constant, or add a multiple of one row to another, with the goal of transforming the left-hand matrix into an identity matrix, <i>i.e.</i>, a square matrix \(\mathbf{I}\) with 1s along the diagonal and 0s everywhere else so that when multiplied with any compatible matrix leaves that matrix unchanged. The same row operations must be simultaneously applied to the right-hand matrix. In this case, we add the first row to the second row, and &minus;2 times the first row to the third row, getting \[\begin{bmatrix}1&3&2\\0&1&3\\0&-5&-1\end{bmatrix}\begin{bmatrix}x\\y\\z\end{bmatrix} = \begin{bmatrix}3\\12\\10\end{bmatrix}\] Next we add &minus;3 times the second row to the first and 5 times the second row to the third row, getting \[\begin{bmatrix}1&0&-7\\0&1&3\\0&0&14\end{bmatrix}\begin{bmatrix}x\\y\\z\end{bmatrix} = \begin{bmatrix}-33\\12\\70\end{bmatrix}\] Finally, we divide the third row by 14, then add 7 times the third row to the first row and add &minus;3 times the third row to the second row, getting \[\begin{bmatrix}1&0&0\\0&1&0\\0&0&1\end{bmatrix}\begin{bmatrix}x\\y\\z\end{bmatrix} = \begin{bmatrix}2\\-3\\5\end{bmatrix}\] and that solves the system of equations! In the general case, the row operations are performed as follows: for each column of the left-hand matrix, say column \(c\), starting with column 1 and moving forward, find a row whose first nonzero element is in column \(c\), swap it with row \(c\), divide it by that first nonzero element, and then for each row \(r\neq c\), subtract row \(c\) times the element in row \(r\) column \(c\) from row \(r\). After the last column is processed, the left-hand matrix is an identity matrix. Notice that in the example above, some of the row operations we described for the general case were skipped because they would have had no effect.</p>
+<p>&ldquo;If we apply the same row operations to an identity matrix, we get the following sequence of matrices: \[\begin{bmatrix}1&0&0\\0&1&0\\0&0&1\end{bmatrix}\qquad\begin{bmatrix}1&0&0\\1&1&0\\-2&0&1\end{bmatrix}\qquad\begin{bmatrix}-2&-3&0\\1&1&0\\3&5&1\end{bmatrix}\qquad\begin{bmatrix}-\frac{1}{2}&-\frac{1}{2}&\frac{1}{2}\\\frac{5}{14}&-\frac{1}{14}&-\frac{3}{14}\\\frac{3}{14}&\frac{5}{14}&\frac{1}{14}\end{bmatrix}\] That last matrix is the <i>inverse</i> of the matrix expressing the system of equations we started with: \[\begin{bmatrix}1&3&2\\-1&-2&1\\2&1&3\end{bmatrix}\begin{bmatrix}-\frac{1}{2}&-\frac{1}{2}&\frac{1}{2}\\\frac{5}{14}&-\frac{1}{14}&-\frac{3}{14}\\\frac{3}{14}&\frac{5}{14}&\frac{1}{14}\end{bmatrix}=\begin{bmatrix}1&0&0\\0&1&0\\0&0&1\end{bmatrix}=\begin{bmatrix}-\frac{1}{2}&-\frac{1}{2}&\frac{1}{2}\\\frac{5}{14}&-\frac{1}{14}&-\frac{3}{14}\\\frac{3}{14}&\frac{5}{14}&\frac{1}{14}\end{bmatrix}\begin{bmatrix}1&3&2\\-1&-2&1\\2&1&3\end{bmatrix}\] While matrix multiplication is not in general commutative, any square matrix <span onclick="showpopup(this,'inverse')">commutes</span> with its inverse. You may ask why we&rsquo;d want to compute the inverse of that first matrix. Well, it allows us to easily solve systems of equations with the same matrix but different constant vectors, since the solution is found just by multiplying that inverse by the constant vector:\[\text{if}\qquad\boldsymbol{A}\boldsymbol{x} = \boldsymbol{y}\qquad\text{then}\qquad\boldsymbol{x} = \mathbf{I}\boldsymbol{x} = \boldsymbol{A}^{-1}\boldsymbol{A}{x} = \boldsymbol{A}^{-1}\boldsymbol{y}\] \(\boldsymbol{A}^{-1}\) is the notation for the inverse of \(\boldsymbol{A}\).<p>
+<p>&ldquo;Not every square matrix has an inverse. In the general procedure we described above, the search for a row whose first nonzero element is in column \(c\) can fail. In that case, the matrix does not have an inverse, and the corresponding system of equations does not have a unique solution.&rdquo;</p>
+<div id="inverse" class="popup" onclick="this.style.display='none'">
+<h2>A square matrix and its inverse commute</h2>
+<p>First notice that for any \(n\times n\) square matrix \(\boldsymbol{A}\) and the \(n\times n\) identity matrix \(\mathbf{I}\), it is easy to see by direct computation that \(\boldsymbol{A}\mathbf{I} = \mathbf{I}\boldsymbol{A} = \boldsymbol{A}\). Suppose that matrix \(\boldsymbol{A}\) has a left inverse \(\boldsymbol{A}^{-1}\), so that \(\boldsymbol{A}^{-1}\boldsymbol{A} = \mathbf{I}\), and suppose \(\boldsymbol{A}^{-1}\) has a left inverse \(\boldsymbol{B}\), so \(\boldsymbol{B}\boldsymbol{A}^{-1} = \mathbf{I}\). Then, by associativity of matrix multiplication, \(\boldsymbol{B} = \boldsymbol{B}\mathbf{I} = \boldsymbol{B}(\boldsymbol{A}^{-1}\boldsymbol{A}) = (\boldsymbol{B}\boldsymbol{A}^{-1})\boldsymbol{A} = \mathbf{I}\boldsymbol{A} = \boldsymbol{A}\). In other words, if \(\boldsymbol{A}^{-1}\) has a left inverse, it is \(\boldsymbol{A}\). So, to see that \(\boldsymbol{A}\) commutes with its left inverse (thus making it a two-sided inverse so that it makes sense to just call it an inverse), all we have to do is show that that left inverse has a left inverse.</p>
+<p>Our procedure for computing an inverse performs a sequence of row operations. It turns out that each row operation is equivalent to multiplying the current matrix by a particular matrix on its left. The particular matrix is determined by the particular row operation. For a row swap, the particular matrix \(\boldsymbol{S}_{r,s}\) is just the identity matrix with its corresponding rows swapped.\[\boldsymbol{S}_{2,3}=\begin{bmatrix}1&0&0\\0&0&1\\0&1&0\end{bmatrix}=\boldsymbol{S}_{3,2}\] This row swap matrix is clearly its own inverse. For multiplying a row by a nonzero constant, the particular matrix \(\boldsymbol{M}_{r,m}\) is an identity matrix but with the 1 in the corresponding row multiplied by the nonzero constant. The inverse of this row-multiplying matrix is another row-multiplying matrix but with the 1 in the corresponding row divided by the nonzero constant, \(\boldsymbol{M}_{r,\frac{1}{m}}\). \[\boldsymbol{M}_{2,\frac{1}{3}}=\begin{bmatrix}1&0&0\\0&\frac{1}{3}&0\\0&0&1\end{bmatrix}\qquad\begin{bmatrix}1&0&0\\0&3&0\\0&0&1\end{bmatrix}=\boldsymbol{M}_{2,3}\] Finally, for adding a multiple of one row to another, the particular matrix \(\boldsymbol{A}_{r,s,m}\) is the identity matrix updated with that row operation. The inverse of this row-adding matrix is another row-adding matrix but with the multiplier negated, \(\boldsymbol{A}_{r,s,-m}\). \[\boldsymbol{A}_{1,2,\frac{7}{2}}=\begin{bmatrix}1&\frac{7}{2}&0\\0&1&0\\0&0&1\end{bmatrix}\qquad\begin{bmatrix}1&-\frac{7}{2}&0\\0&1&0\\0&0&1\end{bmatrix}=\boldsymbol{A}_{1,2,-\frac{7}{2}}\]  It should be clear that each of these row operation matrices commutes with its inverse. So, performing a sequence of row operations 1 through \(m\) is equivalent to multiplying on the left by the product of the corresponding row operation matrices \(\boldsymbol{R}_m\cdots\boldsymbol{R}_1\). Associativity shows that its two-sided inverse is \(\boldsymbol{R}_1^{-1}\cdots\boldsymbol{R}_m^{-1}\), as each of the products \(\boldsymbol{R}_i\boldsymbol{R}_i^{-1}\) and \(\boldsymbol{R}_i^{-1}\boldsymbol{R}_i\) collapses to \(\mathbf{I}\). Our procedure for computing an inverse shows that the left inverse of a matrix is in fact such a product of row operations, and we&rsquo;ve just shown that that inverse has a left inverse. So it&rsquo;s a two-sided inverse.</p>
+<p>And now that we know that a square matrix commutes with its inverse, we can see, by associativity of matrix multiplication, that all the integer powers of a square matrix commute with each other. Of course, we define \(\boldsymbol{A}^0 = \mathbf{I}\), which clearly commutes with any compatible matrix. The notation \(\boldsymbol{A}^n\) means multiplying \(\mathbf{I}\) by a sequence of \(n\) occurrences of \(\boldsymbol{A}\) if \(n\) is nonnegative, and \(-n\) occurrences of \(\boldsymbol{A}^{-1}\) if \(n\) is negative. And associativity then shows that \(\boldsymbol{A}^m\boldsymbol{A}^n = \boldsymbol{A}^{m+n} = \boldsymbol{A}^n\boldsymbol{A}^m\). Even if \(\boldsymbol{A}\) doesn&rsquo;t have an inverse, this shows that the nonnegative integer powers of \(\boldsymbol{A}\) commute.</p>
+</div>
+
+<div id="exponent" class="popup" onclick="this.style.display='none'">
+<h2>Exponentiation</h2>
+<p>Exponentiation is the process of raising a base to a power called the exponent. If the exponent is a nonnegative integer, it&rsquo;s the number of times 1 is multiplied by the base. So, for example, \(2^3 = 1\times 2\times 2\times 2 = 8\), while \(2^0 = 1\). If the exponent is a negative integer, its magnitude is the number of times 1 is divided by the base. So \(2^{-3} = 1\div 2\div 2\div 2 = \frac{1}{8}\).</p>
+<p>It&rsquo;s fairly clear that for integer exponents \(b^c\times b^d = b^{c+d}\) and not hard to see that \((b^c)^d = b^{c\times d}\). If we want to maintain those equalities for rational exponents, we have to have \(b^{1/c} = \sqrt[c]{b}\), and in particular \(b^{1/2} = \sqrt{b}\). This can be problematic if the base isn&rsquo;t positive, but for positive bases, it&rsquo;s not hard to extend the definition to arbitrary real exponents.</p>
+</div>
+<div id="mmx" class="popup">
+<h2 onclick="this.parentElement.style.display='none'">Matrix multiplication exercise, click here to close</h2>
+<p>Select an element in the product matrix (initially a question mark) to input its value. Its value should be the sum of the products of the elements of the highlighted row of the first matrix with the corresponding elements of the highlighted column of the second matrix. A correct entry will turn green.</p>
+<p id='newmath'></p>
+</div>
+</body>
+</html>
+<!--have sequence of expressions or equations showing only one at a time, with buttons for next and previous to do or undo one rule. Also, input field for each variable to replace variable with number. Perhaps something to do or undo distributivity? Note that when we replace a letter with a number, we may need to insert a times sign of some sort. How would we animate expansion of Sigma or pi notation? Index is being incremented for each term.
+-->
