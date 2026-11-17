@@ -21,6 +21,7 @@ def hexify(r,radix=16) :
   r.__str__ = lambda self: stradix(self.x,radix,n);
 
 def optable(op,r,native=False) :
+  """Given op and ring, return a string showing the op table"""
   rop = {'+':r.__add__,'*':r.__mul__,'x':r.__mul__}[op];
   elements = list(r);
   if op.lower() == 'x' :
@@ -44,3 +45,50 @@ def optable(op,r,native=False) :
                              rop(elements[i],elements[j]).x));
     o.append('\n');
   return ''.join(o);
+
+def htmloptable(op,r,native=False) :
+  """Given op and ring, return as a string an HTML table element for the op table"""
+  rop = {'+':r.__add__,'*':r.__mul__,'x':r.__mul__}[op];
+  sop = {'+':'+','*':'&times;','x':'&times;'}[op];
+  elements = list(r);
+  if op.lower() == 'x' :
+    for x in reversed(elements) :
+      for y in elements :
+        if x*y == 1 :
+          break;
+      else :
+        del elements[x.x];
+  n = len(elements);
+  o = ["<table class='optable'><tr><th>"+sop+"</th>"];
+  for j in range(n) :
+    o.append("<th>"+str(elements[j] if native else j)+"</th>");
+  o.append("</tr>");
+  for i in range(n) :
+    o.append("<tr><th>"+str(elements[i] if native else i)+"</th>");
+    for j in range(n) :
+      o.append("<td>"+str(rop(elements[i],elements[j]) if native else
+                          rop(elements[i],elements[j]).x)+"</td>");
+    o.append("</tr>")
+  o.append("</table>");
+  return ''.join(o);
+
+css4optable = """
+table.optable {
+  border-collapse:collapse;
+  border-spacing:12px 0;
+}
+table.optable tr:first-child th {
+  border-bottom:1px solid black;
+}
+table.optable tr th:first-child {
+  border-right:1px solid black;
+}
+table.optable th {
+  font-size:8pt;
+  padding:0 3px;
+}
+table.optable td {
+  font-size:8pt;
+  padding:0 3px;
+}
+"""
