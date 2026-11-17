@@ -15,6 +15,9 @@ from itertools import count
 from . conversions import stradix
 from . rational import log,ceil
 
+from . ffield import *    # for creating finite fields
+from . fring import *     # for creating finite rings
+
 def hexify(r,radix=16) :
   """Given a finite field, make its __str__ output in radix radix """
   n = ceil(log(r.__len__(),radix));
@@ -24,23 +27,27 @@ def optable(op,r,native=False) :
   """Given op and ring, return a string showing the op table"""
   rop = {'+':r.__add__,'*':r.__mul__,'x':r.__mul__}[op];
   elements = list(r);
+  excluded = set();
   if op.lower() == 'x' :
     for x in reversed(elements) :
       for y in elements :
         if x*y == 1 :
           break;
       else :
-        del elements[x.x];
+        excluded.add(x);
   n = len(elements);
   ss = len(str(elements[-1] if native else n-1));
   formatstring = '%%%ds'%(ss+1);
   o = [formatstring%(op)+' |'];
   for j in range(n) :
+    if elements[j] in excluded : continue;
     o.append(formatstring%(elements[j] if native else j));
   o.append('\n'+'-'*((n+1)*(ss+1)+2)+'\n');
   for i in range(n) :
+    if elements[i] in excluded : continue;
     o.append(formatstring%(elements[i] if native else i)+' |');
     for j in range(n) :
+      if elements[j] in excluded : continue;
       o.append(formatstring%(rop(elements[i],elements[j]) if native else
                              rop(elements[i],elements[j]).x));
     o.append('\n');
@@ -51,27 +58,32 @@ def htmloptable(op,r,native=False) :
   rop = {'+':r.__add__,'*':r.__mul__,'x':r.__mul__}[op];
   sop = {'+':'+','*':'&times;','x':'&times;'}[op];
   elements = list(r);
+  excluded = set();
   if op.lower() == 'x' :
     for x in reversed(elements) :
       for y in elements :
         if x*y == 1 :
           break;
       else :
-        del elements[x.x];
+        excluded.add(x);
   n = len(elements);
   o = ["<table class='optable'><tr><th>"+sop+"</th>"];
   for j in range(n) :
+    if elements[j] in excluded : continue;
     o.append("<th>"+str(elements[j] if native else j)+"</th>");
   o.append("</tr>");
   for i in range(n) :
+    if elements[i] in excluded : continue;
     o.append("<tr><th>"+str(elements[i] if native else i)+"</th>");
     for j in range(n) :
+      if elements[j] in excluded : continue;
       o.append("<td>"+str(rop(elements[i],elements[j]) if native else
                           rop(elements[i],elements[j]).x)+"</td>");
     o.append("</tr>")
   o.append("</table>");
   return ''.join(o);
 
+# sample css for formatting html optable
 css4optable = """
 table.optable {
   border-collapse:collapse;
